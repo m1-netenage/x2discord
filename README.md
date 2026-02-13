@@ -114,6 +114,15 @@ npx playwright install chromium
 - 投稿されない: `.env` の Webhook URL、GUI 下部ログを確認
 - Stop しても流れる: 孤立プロセスの可能性。GUI の Stop を再実行
 - ハイライトが効かない: `HIGHLIGHT_IDS` と OBS ブラウザソースのリロードを確認
+- macOSで「`START-Mac.command` は開けません」と出る:
+  1. Finderで `START-Mac.command` を右クリック -> `開く` を実行（初回のみ）
+  2. それでも不可なら `システム設定` -> `プライバシーとセキュリティ` の下部で `このまま開く` を許可
+  3. ターミナルで解除する場合は以下を実行
+
+```bash
+xattr -d com.apple.quarantine START-Mac.command
+chmod +x START-Mac.command
+```
 
 配布と GitHub 運用
 ------------------
