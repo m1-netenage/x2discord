@@ -108,23 +108,52 @@ async function postOverlay(payload) {
     }
   }
 
-  const browser = await chromium.launch({
-    headless: INIT_LOGIN ? false : HEADLESS,
-    args: ["--disable-blink-features=AutomationControlled"],
-  });
+  let browser = null;
+  let context = null;
+  let page = null;
 
-  // If you run with INIT_LOGIN=1, the browser will open so you can log into X once.
-  // After login, press Enter in the terminal to save cookies to STORAGE_PATH.
-  const context = await browser.newContext({
-    storageState: !INIT_LOGIN ? (existsSync(STORAGE_PATH) ? STORAGE_PATH : undefined) : undefined,
-    userAgent:
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
-    locale: "ja-JP",
-  });
+  const launchRuntime = async () => {
+    browser = await chromium.launch({
+      headless: INIT_LOGIN ? false : HEADLESS,
+      args: ["--disable-blink-features=AutomationControlled"],
+    });
+    // If you run with INIT_LOGIN=1, the browser will open so you can log into X once.
+    // After login, press Enter in the terminal to save cookies to STORAGE_PATH.
+    context = await browser.newContext({
+      storageState: !INIT_LOGIN ? (existsSync(STORAGE_PATH) ? STORAGE_PATH : undefined) : undefined,
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+      locale: "ja-JP",
+    });
+    page = await context.newPage();
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+  };
 
-  const page = await context.newPage();
+  const recreateRuntime = async (reason) => {
+    console.warn(`[x2discord] recreating browser session: ${reason}`);
+    try {
+      if (context) await context.close();
+    } catch {
+      // ignore
+    }
+    try {
+      if (browser) await browser.close();
+    } catch {
+      // ignore
+    }
+    browser = null;
+    context = null;
+    page = null;
+    await launchRuntime();
+  };
 
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  const ensureRuntime = async () => {
+    if (!browser || !browser.isConnected() || !page || page.isClosed()) {
+      await recreateRuntime("page/context/browser closed");
+    }
+  };
+
+  await launchRuntime();
 
   if (INIT_LOGIN) {
     console.log("\n[x2discord] INIT_LOGIN=1: Xにログインしてから、このターミナルで Enter を押して cookies を保存してね");
@@ -144,6 +173,8 @@ async function postOverlay(payload) {
 
   async function tick() {
     try {
+      await ensureRuntime();
+
       // Encourage refresh by small scroll
       await page.mouse.wheel(0, 800);
       await page.waitForTimeout(700);
@@ -228,7 +259,16 @@ async function postOverlay(payload) {
         await sleep(400);
       }
     } catch (e) {
-      console.error("[x2discord] tick error:", e?.message || e);
+      const msg = e?.message || String(e);
+      console.error("[x2discord] tick error:", msg);
+      if (/has been closed|Target page, context or browser has been closed/i.test(msg)) {
+        try {
+          await recreateRuntime("detected closed target in tick");
+        } catch (recreateErr) {
+          console.error("[x2discord] recreate failed:", recreateErr?.message || recreateErr);
+        }
+        return;
+      }
       // If something goes wrong, try reload
       try {
         await page.reload({ waitUntil: "domcontentloaded" });
