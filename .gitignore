@@ -1,0 +1,18 @@
+node_modules/
+yarn.lock
+.env
+.env.*
+!.env.example
+storageState.json
+.DS_Store
+gui.pid
+*.pid
+*.log
+.playwright-installed
+seen_ids.txt
+dist/
+build/
+
+# Editor
+.vscode/
+.idea/

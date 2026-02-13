@@ -1,0 +1,147 @@
+.Chat_chatContainer__N0eOL {
+  width: 100vw !important;
+  height: 100vh !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.Chat_messages__afjga {
+  position: relative;
+  overflow: hidden;
+  background: transparent !important;
+
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  flex-grow: 1;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+/* 各チャットメッセージのスタイルとアニメーション */
+.Chat_message__P69ez {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  animation: scrollComment 20s linear forwards;
+  font-weight: bold;
+  font-size: 56px;
+  line-height: 1.3;
+  padding: 6px 0;
+  pointer-events: none;
+  width: max-content;
+  color: white;
+  text-shadow:
+    -2px -2px 0 black,
+    2px -2px 0 black,
+    -2px 2px 0 black,
+    2px 2px 0 black;
+  position: static !important;
+  overflow: visible;
+}
+
+/* アバターを表示（img型） */
+.Chat_message__P69ez > img,
+.Chat_message__P69ez img[class*="avatar"],
+.Chat_message__P69ez img[class*="Avatar"],
+.Chat_message__P69ez [class*="avatar"] img,
+.Chat_message__P69ez [class*="Avatar"] img {
+  display: inline-block !important;
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  border-radius: 50% !important;
+  object-fit: cover;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* アバターを表示（background-image型） */
+.Chat_message__P69ez [class*="avatar"][style*="background-image"],
+.Chat_message__P69ez [class*="Avatar"][style*="background-image"] {
+  display: inline-block !important;
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+  border-radius: 50% !important;
+  background-size: cover !important;
+  background-position: center !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* ユーザー名を角括弧つきで表示 */
+.Chat_message__P69ez .Chat_username__5fTg6 {
+  display: inline-block !important;
+  font-size: 36px;
+}
+.Chat_message__P69ez .Chat_username__5fTg6::before {
+  content: "[";
+}
+.Chat_message__P69ez .Chat_username__5fTg6::after {
+  content: "] ";
+}
+
+/* もしユーザー名は残して「Xハッシュタグ」だけ消したい場合は↑を消して、
+  下のどちらかに置き換え（※文言に依存するので効かない場合あり）
+*/
+/*
+.Chat_message__P69ez .Chat_username__5fTg6 { font-size: 0 !important; }
+.Chat_message__P69ez .Chat_username__5fTg6::before { content: ""; font-size: 120px; }
+*/
+
+
+/* メッセージ本文の色を白に固定 */
+.Chat_message__P69ez .Chat_messageText__k79m4 {
+  display: inline-block;
+  color: white !important;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+
+/* ハイライト用 */
+.hl {
+  color: #f87171 !important;
+  font-weight: 800 !important;
+}
+
+/* avatarが見つからない環境でも行の先頭崩れを防ぐ */
+.Chat_message__P69ez .Chat_messageText__k79m4::before {
+  content: "";
+}
+
+
+/* チャット時刻を非表示に */
+.Chat_timestamp__nyBmU {
+  display: none;
+}
+
+
+/* チャンネル名バーを非表示に */
+.Chat_channelName__O6KEu {
+  display: none !important;
+}
+
+/* 横スクロール */
+@keyframes scrollComment {
+  0% {
+    transform: translateX(100vw);
+  }
+
+  100% {
+    transform: translateX(calc(-100% - 10vw));
+  }
+
+  /* ★ 少し余分に左へ */
+}
+
+
+/* ページ全体の背景も透明に */
+body {
+  background: transparent !important;
+}
