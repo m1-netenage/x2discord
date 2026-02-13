@@ -632,7 +632,17 @@ const handleOverlayStream = (_req, res) => {
     res.write(`data: ${JSON.stringify(m)}\n\n`);
   }
   overlayClients.add(res);
-  _req.on("close", () => overlayClients.delete(res));
+  const keepAlive = setInterval(() => {
+    try {
+      res.write(": keepalive\n\n");
+    } catch {
+      // ignore
+    }
+  }, 15000);
+  _req.on("close", () => {
+    clearInterval(keepAlive);
+    overlayClients.delete(res);
+  });
 };
 
 const overlayHtml = () => {
@@ -653,10 +663,16 @@ const overlayHtml = () => {
     const box=document.getElementById("msgs");
     const maxKeep=100;
     let highlights=[];
+    const escHtml=(s)=>String(s||"")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#39;");
     const regEsc=(s)=>s.replace(/[-[\\]{}()*+?.,\\\\^$|#\\s]/g,"\\\\$&");
     const norm=(s)=>String(s||"").replace(/^@/,"").toLowerCase();
     const paint=(text)=>{
-      let t=text||"";
+      let t=escHtml(text||"");
       for(const h of highlights){
         if(!h) continue;
         const base=norm(h);
@@ -702,6 +718,7 @@ const overlayHtml = () => {
       txt.className="Chat_messageText__k79m4";
       txt.innerHTML=paint(m.content||"");
       row.appendChild(txt);
+      row.addEventListener("animationend", ()=>row.remove(), { once: true });
       box.prepend(row);
       while(box.children.length>maxKeep) box.removeChild(box.lastChild);
     }
