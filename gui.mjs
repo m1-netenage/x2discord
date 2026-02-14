@@ -158,10 +158,14 @@ const runningPid = () => {
 };
 
 const findWatcherPids = () => {
+  // `pgrep` is Unix-only. On Windows this path can cause flashing shell windows
+  // when `/status` is polled frequently by the GUI.
+  if (process.platform === "win32") return [];
   try {
     const out = execSync("pgrep -f \"node .*x2discord.mjs\"", {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
+      windowsHide: true,
     }).trim();
     if (!out) return [];
     return out
