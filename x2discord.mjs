@@ -25,6 +25,7 @@ const HEADLESS = (process.env.HEADLESS || "true").toLowerCase() !== "false";
 const STORAGE_PATH = process.env.STORAGE_PATH || "./storageState.json";
 const INIT_LOGIN = (process.env.INIT_LOGIN || "0") === "1";
 const DEBUG_POST = (process.env.DEBUG_POST || "0") === "1";
+const LOGIN_URL = "https://x.com/i/flow/login";
 
 if (!INIT_LOGIN && !WEBHOOK_URL) {
   console.error("[x2discord] DISCORD_WEBHOOK_URL が未設定です (.env を作ってください)");
@@ -117,18 +118,15 @@ async function postOverlay(payload) {
   const launchRuntime = async () => {
     browser = await chromium.launch({
       headless: INIT_LOGIN ? false : HEADLESS,
-      args: ["--disable-blink-features=AutomationControlled"],
     });
     // If you run with INIT_LOGIN=1, the browser will open so you can log into X once.
     // After login, press Enter in the terminal to save cookies to STORAGE_PATH.
     context = await browser.newContext({
       storageState: !INIT_LOGIN ? (existsSync(STORAGE_PATH) ? STORAGE_PATH : undefined) : undefined,
-      userAgent:
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
       locale: "ja-JP",
     });
     page = await context.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded" });
+    await page.goto(INIT_LOGIN ? LOGIN_URL : url, { waitUntil: "domcontentloaded" });
   };
 
   const recreateRuntime = async (reason) => {
