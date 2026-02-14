@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
-import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,26 +11,6 @@ const GUI_PID_FILE = path.resolve(__dirname, "gui.pid");
 const log = (line) => {
   fs.appendFileSync(LAUNCH_LOG_FILE, `${line}\n`);
 };
-
-const canConnectGuiPort = () =>
-  new Promise((resolve) => {
-    const sock = net.connect({ host: "127.0.0.1", port: 3000 });
-    let done = false;
-    const finish = (ok) => {
-      if (done) return;
-      done = true;
-      try {
-        sock.destroy();
-      } catch {
-        // ignore
-      }
-      resolve(ok);
-    };
-    sock.setTimeout(600);
-    sock.once("connect", () => finish(true));
-    sock.once("timeout", () => finish(false));
-    sock.once("error", () => finish(false));
-  });
 
 const readGuiPid = () => {
   if (!fs.existsSync(GUI_PID_FILE)) return null;
@@ -68,24 +47,13 @@ try {
     log(`[x2discord] gui already running pid=${existingPid}`);
     process.exit(0);
   }
-  canConnectGuiPort()
-    .then((portBusy) => {
-      if (portBusy) {
-        log("[x2discord] gui already running (port 3000 is open)");
-        return;
-      }
-      // stale pid file cleanup + launch fresh GUI
-      try {
-        if (fs.existsSync(GUI_PID_FILE)) fs.unlinkSync(GUI_PID_FILE);
-      } catch {
-        // ignore
-      }
-      launchGui();
-    })
-    .catch((e) => {
-      log(`[x2discord] launcher failed async: ${e?.message || e}`);
-      process.exit(1);
-    });
+  // stale pid file cleanup + launch fresh GUI
+  try {
+    if (fs.existsSync(GUI_PID_FILE)) fs.unlinkSync(GUI_PID_FILE);
+  } catch {
+    // ignore
+  }
+  launchGui();
 } catch (e) {
   log(`[x2discord] launcher failed: ${e?.message || e}`);
   process.exit(1);
