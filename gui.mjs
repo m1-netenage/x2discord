@@ -142,6 +142,8 @@ const sseClients = new Set();
 const overlayClients = new Set();
 const overlayMessages = [];
 let loginPending = false;
+let warmupStarted = false;
+let warmupDone = false;
 
 const removeGuiPidFile = () => {
   try {
@@ -269,6 +271,23 @@ const ensureChromiumRuntime = () => {
     if (stderr.trim()) appendLogLine(`[gui] chromium setup stderr: ${stderr.trim().slice(0, 1200)}`);
     throw new Error("Chromium セットアップに失敗しました。");
   }
+};
+
+const runWarmupOnce = () => {
+  if (warmupStarted || warmupDone) return;
+  warmupStarted = true;
+  // Run before user presses Start so first login/start feels faster.
+  setTimeout(() => {
+    try {
+      appendLogLine("[gui] background warmup started");
+      ensureWatcherDeps();
+      ensureChromiumRuntime();
+      warmupDone = true;
+      appendLogLine("[gui] background warmup completed");
+    } catch (e) {
+      appendLogLine(`[gui] background warmup skipped: ${e?.message || e}`);
+    }
+  }, 50);
 };
 
 const startWatcher = ({ loginMode = false } = {}) => {
@@ -852,6 +871,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[gui] open http://localhost:${PORT}`);
+  runWarmupOnce();
 });
 
 process.on("SIGINT", () => {
