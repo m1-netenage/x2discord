@@ -4,6 +4,11 @@ cd /d "%~dp0"
 
 set "LAUNCH_LOG_FILE=launcher.log"
 set "NODE_EXE="
+set "START_GUARD=.start_guard"
+
+if exist "%START_GUARD%" exit /b 0
+type nul > "%START_GUARD%"
+start "" /min cmd /c "ping -n 6 127.0.0.1 >nul & del /f /q ""%~dp0%START_GUARD%"""
 
 echo [x2discord] launcher started: %DATE% %TIME%>"%LAUNCH_LOG_FILE%"
 echo [x2discord] cwd=%CD%>>"%LAUNCH_LOG_FILE%"
@@ -29,7 +34,7 @@ goto :install_failed
 echo [x2discord] using node: %NODE_EXE%>>"%LAUNCH_LOG_FILE%"
 "%NODE_EXE%" windows-launcher.mjs
 if errorlevel 1 goto :fail
-start "" "http://localhost:3000" >nul 2>&1
+rundll32 url.dll,FileProtocolHandler "http://localhost:3000" >nul 2>&1
 exit /b 0
 
 :resolve_node

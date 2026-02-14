@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,11 +8,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUI_LOG_FILE = path.resolve(__dirname, "gui.log");
 const LAUNCH_LOG_FILE = path.resolve(__dirname, "launcher.log");
 const GUI_PID_FILE = path.resolve(__dirname, "gui.pid");
-const GUI_URL = "http://localhost:3000";
 
 const log = (line) => {
   fs.appendFileSync(LAUNCH_LOG_FILE, `${line}\n`);
 };
+
+const canConnectGuiPort = () =>
+  new Promise((resolve) => {
+    const sock = net.connect({ host: "127.0.0.1", port: 3000 });
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      try {
+        sock.destroy();
+      } catch {
+        // ignore
+      }
+      resolve(ok);
+    };
+    sock.setTimeout(600);
+    sock.once("connect", () => finish(true));
+    sock.once("timeout", () => finish(false));
+    sock.once("error", () => finish(false));
+  });
 
 const readGuiPid = () => {
   if (!fs.existsSync(GUI_PID_FILE)) return null;
@@ -40,71 +60,32 @@ const launchGui = () => {
   log(`[x2discord] gui started pid=${child.pid}`);
 };
 
-const openBrowser = () => {
-  // Browser open can be blocked by local policy/AV, so try multiple methods.
-  try {
-    const opener = spawn("explorer.exe", [GUI_URL], {
-      cwd: __dirname,
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    opener.unref();
-  } catch (e1) {
-    log(`[x2discord] browser open via explorer failed: ${e1?.message || e1}`);
-    try {
-      const opener = spawn("cmd.exe", ["/c", "start", "", GUI_URL], {
-        cwd: __dirname,
-        detached: true,
-        stdio: "ignore",
-        windowsHide: true,
-      });
-      opener.unref();
-    } catch (e2) {
-      log(`[x2discord] browser open via cmd failed: ${e2?.message || e2}`);
-      try {
-        const opener = spawn("powershell.exe", ["-NoProfile", "-Command", `Start-Process '${GUI_URL}'`], {
-          cwd: __dirname,
-          detached: true,
-          stdio: "ignore",
-          windowsHide: true,
-        });
-        opener.unref();
-      } catch (e3) {
-        log(`[x2discord] browser open via powershell failed: ${e3?.message || e3}`);
-      }
-    }
-  }
-  try {
-    const opener = spawn("cmd.exe", ["/c", "start", "", GUI_URL], {
-      cwd: __dirname,
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    opener.unref();
-  } catch {
-    // best-effort secondary kick
-  }
-  log(`[x2discord] browser open requested: ${GUI_URL}`);
-};
-
 try {
   fs.writeFileSync(LAUNCH_LOG_FILE, `[x2discord] launcher started: ${new Date().toISOString()}\n`);
   log(`[x2discord] cwd=${__dirname}`);
   const existingPid = readGuiPid();
   if (existingPid) {
     log(`[x2discord] gui already running pid=${existingPid}`);
-  } else {
-    // stale pid file cleanup + launch fresh GUI
-    try {
-      if (fs.existsSync(GUI_PID_FILE)) fs.unlinkSync(GUI_PID_FILE);
-    } catch {
-      // ignore
-    }
-    launchGui();
+    process.exit(0);
   }
-  openBrowser();
+  canConnectGuiPort()
+    .then((portBusy) => {
+      if (portBusy) {
+        log("[x2discord] gui already running (port 3000 is open)");
+        return;
+      }
+      // stale pid file cleanup + launch fresh GUI
+      try {
+        if (fs.existsSync(GUI_PID_FILE)) fs.unlinkSync(GUI_PID_FILE);
+      } catch {
+        // ignore
+      }
+      launchGui();
+    })
+    .catch((e) => {
+      log(`[x2discord] launcher failed async: ${e?.message || e}`);
+      process.exit(1);
+    });
 } catch (e) {
   log(`[x2discord] launcher failed: ${e?.message || e}`);
   process.exit(1);
