@@ -40,11 +40,8 @@ if exist "%GUI_PID_FILE%" (
 )
 
 echo [x2discord] launching GUI server... logs -^> %GUI_LOG_FILE%
-set "NEW_PID="
-for /f %%I in ('powershell -NoProfile -Command "$p = Start-Process -FilePath node -ArgumentList 'gui.mjs' -WorkingDirectory '.' -WindowStyle Hidden -RedirectStandardOutput 'gui.log' -RedirectStandardError 'gui.log' -PassThru; $p.Id"') do (
-  set "NEW_PID=%%I"
-)
-if not "%NEW_PID%"=="" echo %NEW_PID%>"%GUI_PID_FILE%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Start-Process -FilePath 'node' -ArgumentList 'gui.mjs' -WorkingDirectory '%CD%' -WindowStyle Hidden -RedirectStandardOutput '%GUI_LOG_FILE%' -RedirectStandardError '%GUI_LOG_FILE%' -PassThru; [IO.File]::WriteAllText('%GUI_PID_FILE%', $p.Id)"
+if errorlevel 1 goto :fail
 
 :open
 start "" "%GUI_URL%"
