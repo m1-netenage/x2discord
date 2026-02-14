@@ -143,6 +143,15 @@ const overlayClients = new Set();
 const overlayMessages = [];
 let loginPending = false;
 
+const removeGuiPidFile = () => {
+  try {
+    const guiPidPath = path.resolve(__dirname, "./gui.pid");
+    if (fs.existsSync(guiPidPath)) fs.unlinkSync(guiPidPath);
+  } catch {
+    // ignore
+  }
+};
+
 const runningPid = () => {
   try {
     if (!fs.existsSync(PID_FILE)) return null;
@@ -399,6 +408,7 @@ const handleRoot = (res) => {
         <button id="startBtn">Start (headless)</button>
         <button id="loginBtn" class="secondary">Start for Login</button>
         <button id="stopBtn" class="danger">Stop</button>
+        <button id="shutdownBtn" class="danger">Stop & Exit</button>
         <button id="loginDoneBtn" class="secondary">ログイン完了 → 保存</button>
       </div>
       <div class="panel" style="background:#0b1220; margin-bottom:16px;">
@@ -452,6 +462,7 @@ const handleRoot = (res) => {
       const logsEl = document.getElementById("logs");
       const startBtn = document.getElementById("startBtn");
       const stopBtn = document.getElementById("stopBtn");
+      const shutdownBtn = document.getElementById("shutdownBtn");
       const loginBtn = document.getElementById("loginBtn");
       const loginDoneBtn = document.getElementById("loginDoneBtn");
       const hlInput = document.getElementById("hlInput");
@@ -477,6 +488,7 @@ const handleRoot = (res) => {
         startBtn.disabled = res.running;
         loginBtn.disabled = res.running;
         stopBtn.disabled = !res.running;
+        shutdownBtn.disabled = false;
         loginDoneBtn.disabled = !(res.running && res.mode === "login");
         const active = document.activeElement;
         const envEditing = envInputs.includes(active);
@@ -506,6 +518,10 @@ const handleRoot = (res) => {
         fetch("/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login: true }) }).then(updateStatus);
       stopBtn.onclick = () =>
         fetch("/stop", { method: "POST" }).then(updateStatus);
+      shutdownBtn.onclick = async () => {
+        await fetch("/shutdown", { method: "POST" });
+        statusEl.textContent = "GUI stopped. You can close this tab.";
+      };
       loginDoneBtn.onclick = () =>
         fetch("/login/complete", { method: "POST" }).then(updateStatus);
       hlSaveBtn.onclick = async () => {
@@ -596,6 +612,26 @@ const handleStart = async (req, res) => {
 const handleStop = (res) => {
   const stopped = stopWatcher();
   json(res, 200, { ok: stopped });
+};
+
+const handleShutdown = (res) => {
+  stopWatcher();
+  json(res, 200, { ok: true });
+  setTimeout(() => {
+    removeGuiPidFile();
+    for (const client of sseClients) {
+      try {
+        client.end();
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      server.close(() => process.exit(0));
+    } catch {
+      process.exit(0);
+    }
+  }, 150);
 };
 
 const handleLoginComplete = (res) => {
@@ -796,6 +832,7 @@ const server = http.createServer((req, res) => {
   if (req.method === "GET" && url.pathname === "/status") return handleStatus(res);
   if (req.method === "POST" && url.pathname === "/start") return handleStart(req, res);
   if (req.method === "POST" && url.pathname === "/stop") return handleStop(res);
+  if (req.method === "POST" && url.pathname === "/shutdown") return handleShutdown(res);
   if (req.method === "POST" && url.pathname === "/login/complete")
     return handleLoginComplete(res);
   if (req.method === "POST" && url.pathname === "/highlight")
@@ -815,4 +852,13 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[gui] open http://localhost:${PORT}`);
+});
+
+process.on("SIGINT", () => {
+  removeGuiPidFile();
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  removeGuiPidFile();
+  process.exit(0);
 });
