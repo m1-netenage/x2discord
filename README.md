@@ -52,7 +52,8 @@ X の指定ハッシュタグを定期取得し、Discord Webhook に投稿す�
 2. GUI が開いたら「環境設定 (.env に保存)」を入力して保存する（`.env` が無ければ自動生成されます）
 3. 初回だけ「Start for Login」-> X ログイン -> 「ログイン完了 -> 保存」
 4. 通常運用は「Start (headless)」で開始、「Stop」で停止
-5. ハイライトしたいハンドルを入力して「保存（.envにも保存）」
+5. GUI も含めて完全終了したいときは「Stop & Exit」を押す
+6. ハイライトしたいハンドルを入力して「保存（.envにも保存）」
 
 補足: 監視中に環境設定を保存すると、ウォッチャーは自動再起動して設定を反映します。
 補足: 配布時は、利用者ごとに自分の Discord Webhook URL（=自分のチャンネル）を GUI から登録して使います。
@@ -85,6 +86,7 @@ Webhook URL はパスワードと同じ扱いにして、他人に共有しな�
 - `STORAGE_PATH`: cookie 保存先（既定: `./storageState.json`）
 - `SEEN_PATH`: 送信済み ID 保存先（既定: `./seen_ids.txt`）
 - `HIGHLIGHT_IDS`: ハイライト対象ハンドル（カンマ区切り）
+- `LOGIN_USER_AGENT`: ログイン時だけ適用する User-Agent（任意）
 - `OVERLAY_ENABLED`: ローカルオーバーレイ連携（`1`/`0`、既定 `1`）
 - `OVERLAY_POST_URL`: オーバーレイ受け口（既定: `http://localhost:3000/overlay/message`）
 - `DEBUG_POST`: 送信デバッグログ（`1` で有効）
@@ -93,7 +95,10 @@ Webhook URL はパスワードと同じ扱いにして、他人に共有しな�
 Playwright 初回セットアップ（必要時のみ）
 ----------------------------------------
 
-通常は `START-Windows.bat` / `START-Mac.command` が自動で準備します。
+通常は `START-Windows.bat` / `START-Mac.command` と GUI が自動で準備します。
+初回の `Start` / `Start for Login` は、依存セットアップのため数秒〜数十秒かかる場合があります。
+GUI 下部ログに進捗（`background warmup...` / `npm ci...` / `Chromium setup...`）が出ていれば正常です。
+
 GUI 起動時に Chromium 不足エラーが出る場合のみ、1 回だけ以下を実行してください。
 
 ```bash
@@ -113,6 +118,11 @@ npx playwright install chromium
 - GUI が開かない: `http://localhost:3000` を手動で開く
 - 投稿されない: `.env` の Webhook URL、GUI 下部ログを確認
 - Stop しても流れる: 孤立プロセスの可能性。GUI の Stop を再実行
+- 配布フォルダを削除できない: GUI の「Stop & Exit」で完全終了してから削除
+- 「Start for Login」で X に弾かれる:
+  1. X 側の一時ブロックで発生する場合があります（コード不具合ではないケースあり）
+  2. 20〜60分以上あけて再試行してください
+  3. 同じエラーが続く場合は、別環境で作成した `storageState.json` を共有して `Start (headless)` を利用してください
 - ハイライトが効かない: `HIGHLIGHT_IDS` と OBS ブラウザソースのリロードを確認
 - macOSで「`START-Mac.command` は開けません」と出る:
   1. Finderで `START-Mac.command` を右クリック -> `開く` を実行（初回のみ）
