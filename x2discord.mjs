@@ -26,6 +26,7 @@ const STORAGE_PATH = process.env.STORAGE_PATH || "./storageState.json";
 const INIT_LOGIN = (process.env.INIT_LOGIN || "0") === "1";
 const DEBUG_POST = (process.env.DEBUG_POST || "0") === "1";
 const LOGIN_URL = "https://x.com/i/flow/login";
+const LOGIN_PROFILE_DIR = process.env.LOGIN_PROFILE_DIR || "./.login-profile";
 
 if (!INIT_LOGIN && !WEBHOOK_URL) {
   console.error("[x2discord] DISCORD_WEBHOOK_URL が未設定です (.env を作ってください)");
@@ -116,26 +117,32 @@ async function postOverlay(payload) {
   let page = null;
 
   const launchRuntime = async () => {
-    const launchOptions = {
-      headless: INIT_LOGIN ? false : HEADLESS,
-    };
     if (INIT_LOGIN) {
-      // Prefer a locally installed Chrome for login flow.
+      // Use a persistent Chrome profile for login to look closer to normal browser usage.
       try {
-        browser = await chromium.launch({ ...launchOptions, channel: "chrome" });
+        context = await chromium.launchPersistentContext(LOGIN_PROFILE_DIR, {
+          headless: false,
+          channel: "chrome",
+          locale: "ja-JP",
+        });
       } catch {
-        browser = await chromium.launch(launchOptions);
+        context = await chromium.launchPersistentContext(LOGIN_PROFILE_DIR, {
+          headless: false,
+          locale: "ja-JP",
+        });
       }
+      browser = context.browser();
+      page = context.pages()[0] || (await context.newPage());
     } else {
-      browser = await chromium.launch(launchOptions);
+      browser = await chromium.launch({
+        headless: HEADLESS,
+      });
+      context = await browser.newContext({
+        storageState: existsSync(STORAGE_PATH) ? STORAGE_PATH : undefined,
+        locale: "ja-JP",
+      });
+      page = await context.newPage();
     }
-    // If you run with INIT_LOGIN=1, the browser will open so you can log into X once.
-    // After login, press Enter in the terminal to save cookies to STORAGE_PATH.
-    context = await browser.newContext({
-      storageState: !INIT_LOGIN ? (existsSync(STORAGE_PATH) ? STORAGE_PATH : undefined) : undefined,
-      locale: "ja-JP",
-    });
-    page = await context.newPage();
     await page.goto(INIT_LOGIN ? LOGIN_URL : url, { waitUntil: "domcontentloaded" });
   };
 
