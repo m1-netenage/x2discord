@@ -41,16 +41,41 @@ const launchGui = () => {
 };
 
 const openBrowser = () => {
-  // Prefer PowerShell, fallback to cmd/start when blocked by policy.
+  // Browser open can be blocked by local policy/AV, so try multiple methods.
   try {
-    const opener = spawn("powershell.exe", ["-NoProfile", "-Command", `Start-Process '${GUI_URL}'`], {
+    const opener = spawn("explorer.exe", [GUI_URL], {
       cwd: __dirname,
       detached: true,
       stdio: "ignore",
       windowsHide: true,
     });
     opener.unref();
-  } catch {
+  } catch (e1) {
+    log(`[x2discord] browser open via explorer failed: ${e1?.message || e1}`);
+    try {
+      const opener = spawn("cmd.exe", ["/c", "start", "", GUI_URL], {
+        cwd: __dirname,
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      opener.unref();
+    } catch (e2) {
+      log(`[x2discord] browser open via cmd failed: ${e2?.message || e2}`);
+      try {
+        const opener = spawn("powershell.exe", ["-NoProfile", "-Command", `Start-Process '${GUI_URL}'`], {
+          cwd: __dirname,
+          detached: true,
+          stdio: "ignore",
+          windowsHide: true,
+        });
+        opener.unref();
+      } catch (e3) {
+        log(`[x2discord] browser open via powershell failed: ${e3?.message || e3}`);
+      }
+    }
+  }
+  try {
     const opener = spawn("cmd.exe", ["/c", "start", "", GUI_URL], {
       cwd: __dirname,
       detached: true,
@@ -58,6 +83,8 @@ const openBrowser = () => {
       windowsHide: true,
     });
     opener.unref();
+  } catch {
+    // best-effort secondary kick
   }
   log(`[x2discord] browser open requested: ${GUI_URL}`);
 };

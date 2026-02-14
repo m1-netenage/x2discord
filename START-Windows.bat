@@ -29,6 +29,7 @@ goto :install_failed
 echo [x2discord] using node: %NODE_EXE%>>"%LAUNCH_LOG_FILE%"
 "%NODE_EXE%" windows-launcher.mjs
 if errorlevel 1 goto :fail
+start "" "http://localhost:3000" >nul 2>&1
 exit /b 0
 
 :resolve_node
