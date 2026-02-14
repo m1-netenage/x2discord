@@ -20,16 +20,16 @@ const SEEN_PATH = process.env.SEEN_PATH || "./seen_ids.txt";
 const OVERLAY_POST_URL = process.env.OVERLAY_POST_URL || "http://localhost:3000/overlay/message";
 const OVERLAY_ENABLED = (process.env.OVERLAY_ENABLED || "1") === "1";
 
-if (!WEBHOOK_URL) {
-  console.error("[x2discord] DISCORD_WEBHOOK_URL が未設定です (.env を作ってください)");
-  console.error("例: DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/... ");
-  process.exit(1);
-}
-
 const HEADLESS = (process.env.HEADLESS || "true").toLowerCase() !== "false";
 const STORAGE_PATH = process.env.STORAGE_PATH || "./storageState.json";
 const INIT_LOGIN = (process.env.INIT_LOGIN || "0") === "1";
 const DEBUG_POST = (process.env.DEBUG_POST || "0") === "1";
+
+if (!INIT_LOGIN && !WEBHOOK_URL) {
+  console.error("[x2discord] DISCORD_WEBHOOK_URL が未設定です (.env を作ってください)");
+  console.error("例: DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/... ");
+  process.exit(1);
+}
 
 const searchUrl = (tags) => {
   if (!tags || tags.length === 0) tags = ["animaymg"];
@@ -62,6 +62,7 @@ const normalizeText = (t) => {
 };
 
 async function postDiscord(payload) {
+  if (!WEBHOOK_URL) return;
   const res = await fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -153,7 +154,17 @@ async function postOverlay(payload) {
     }
   };
 
-  await launchRuntime();
+  try {
+    await launchRuntime();
+  } catch (e) {
+    const msg = e?.message || String(e);
+    console.error("[x2discord] browser launch failed:", msg);
+    if (/Executable doesn't exist|browserType\.launch/i.test(msg)) {
+      console.error("[x2discord] Playwright Chromium が未導入の可能性があります");
+      console.error("[x2discord] 実行: npx playwright install chromium");
+    }
+    process.exit(1);
+  }
 
   if (INIT_LOGIN) {
     console.log("\n[x2discord] INIT_LOGIN=1: Xにログインしてから、このターミナルで Enter を押して cookies を保存してね");
