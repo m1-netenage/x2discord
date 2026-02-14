@@ -9,7 +9,6 @@ gui.pid
 *.pid
 *.log
 launcher.log
-launcher.lock
 .playwright-installed
 seen_ids.txt
 dist/

@@ -7,7 +7,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const GUI_LOG_FILE = path.resolve(__dirname, "gui.log");
 const LAUNCH_LOG_FILE = path.resolve(__dirname, "launcher.log");
 const GUI_PID_FILE = path.resolve(__dirname, "gui.pid");
-const LAUNCH_LOCK_FILE = path.resolve(__dirname, "launcher.lock");
 const GUI_URL = "http://localhost:3000";
 
 const log = (line) => {
@@ -27,24 +26,6 @@ const readGuiPid = () => {
   }
 };
 
-const shouldSkipRapidRelaunch = () => {
-  const now = Date.now();
-  try {
-    if (fs.existsSync(LAUNCH_LOCK_FILE)) {
-      const last = Number(fs.readFileSync(LAUNCH_LOCK_FILE, "utf8").trim());
-      if (Number.isFinite(last) && now - last < 15000) return true;
-    }
-  } catch {
-    // ignore
-  }
-  try {
-    fs.writeFileSync(LAUNCH_LOCK_FILE, String(now));
-  } catch {
-    // ignore
-  }
-  return false;
-};
-
 const launchGui = () => {
   const fd = fs.openSync(GUI_LOG_FILE, "a");
   const child = spawn(process.execPath, ["gui.mjs"], {
@@ -60,23 +41,30 @@ const launchGui = () => {
 };
 
 const openBrowser = () => {
-  const opener = spawn("powershell.exe", ["-NoProfile", "-Command", `Start-Process '${GUI_URL}'`], {
-    cwd: __dirname,
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  opener.unref();
+  // Prefer PowerShell, fallback to cmd/start when blocked by policy.
+  try {
+    const opener = spawn("powershell.exe", ["-NoProfile", "-Command", `Start-Process '${GUI_URL}'`], {
+      cwd: __dirname,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    opener.unref();
+  } catch {
+    const opener = spawn("cmd.exe", ["/c", "start", "", GUI_URL], {
+      cwd: __dirname,
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    opener.unref();
+  }
   log(`[x2discord] browser open requested: ${GUI_URL}`);
 };
 
 try {
   fs.writeFileSync(LAUNCH_LOG_FILE, `[x2discord] launcher started: ${new Date().toISOString()}\n`);
   log(`[x2discord] cwd=${__dirname}`);
-  if (shouldSkipRapidRelaunch()) {
-    log("[x2discord] skip: rapid relaunch detected");
-    process.exit(0);
-  }
   const existingPid = readGuiPid();
   if (existingPid) {
     log(`[x2discord] gui already running pid=${existingPid}`);
