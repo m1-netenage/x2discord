@@ -14,6 +14,7 @@ import { URL } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_FILE = path.resolve(__dirname, "./x2discord.log");
 const PID_FILE = path.resolve(__dirname, "./x2discord.pid");
+const PLAYWRIGHT_MODULE_DIR = path.resolve(__dirname, "./node_modules/playwright");
 const PORT = Number(process.env.GUI_PORT || 3000);
 const MAX_LOG_BYTES = Number(process.env.MAX_LOG_BYTES || 5 * 1024 * 1024);
 const KEEP_LOG_BYTES = Number(process.env.KEEP_LOG_BYTES || 1 * 1024 * 1024);
@@ -211,8 +212,35 @@ const handleStream = (stream, label) => {
   });
 };
 
+const ensureWatcherDeps = () => {
+  if (fs.existsSync(PLAYWRIGHT_MODULE_DIR)) return;
+  appendLogLine("[gui] playwright package not found. running npm ci...");
+  try {
+    const out = execSync("npm ci", {
+      cwd: __dirname,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    if ((out || "").trim()) {
+      appendLogLine("[gui] npm ci completed");
+    }
+  } catch (e) {
+    const stderr = e?.stderr ? String(e.stderr) : "";
+    const stdout = e?.stdout ? String(e.stdout) : "";
+    if (stdout.trim()) appendLogLine(`[gui] npm ci stdout: ${stdout.trim().slice(0, 1200)}`);
+    if (stderr.trim()) appendLogLine(`[gui] npm ci stderr: ${stderr.trim().slice(0, 1200)}`);
+    throw new Error("依存インストールに失敗しました。ネット接続と npm を確認してください。");
+  }
+  if (!fs.existsSync(PLAYWRIGHT_MODULE_DIR)) {
+    throw new Error("playwright のインストール確認に失敗しました。");
+  }
+};
+
 const startWatcher = ({ loginMode = false } = {}) => {
   if (child || runningPid()) throw new Error("既に起動しています");
+  ensureWatcherDeps();
 
   const env = {
     ...process.env,
