@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOG_FILE = path.resolve(__dirname, "./x2discord.log");
 const PID_FILE = path.resolve(__dirname, "./x2discord.pid");
 const PLAYWRIGHT_MODULE_DIR = path.resolve(__dirname, "./node_modules/playwright");
+const PLAYWRIGHT_MARKER = path.resolve(__dirname, "./.playwright-installed");
 const PORT = Number(process.env.GUI_PORT || 3000);
 const MAX_LOG_BYTES = Number(process.env.MAX_LOG_BYTES || 5 * 1024 * 1024);
 const KEEP_LOG_BYTES = Number(process.env.KEEP_LOG_BYTES || 1 * 1024 * 1024);
@@ -213,6 +214,7 @@ const handleStream = (stream, label) => {
 };
 
 const ensureWatcherDeps = () => {
+  appendLogLine("[gui] checking runtime dependencies...");
   if (fs.existsSync(PLAYWRIGHT_MODULE_DIR)) return;
   appendLogLine("[gui] playwright package not found. running npm ci...");
   try {
@@ -238,9 +240,34 @@ const ensureWatcherDeps = () => {
   }
 };
 
+const ensureChromiumRuntime = () => {
+  if (fs.existsSync(PLAYWRIGHT_MARKER)) return;
+  appendLogLine("[gui] preparing Playwright Chromium (first-time setup, may take a few minutes)...");
+  try {
+    execSync("npx playwright install chromium", {
+      cwd: __dirname,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    fs.writeFileSync(PLAYWRIGHT_MARKER, "");
+    appendLogLine("[gui] Playwright Chromium setup completed");
+  } catch (e) {
+    const stderr = e?.stderr ? String(e.stderr) : "";
+    const stdout = e?.stdout ? String(e.stdout) : "";
+    if (stdout.trim()) appendLogLine(`[gui] chromium setup stdout: ${stdout.trim().slice(0, 1200)}`);
+    if (stderr.trim()) appendLogLine(`[gui] chromium setup stderr: ${stderr.trim().slice(0, 1200)}`);
+    throw new Error("Chromium セットアップに失敗しました。");
+  }
+};
+
 const startWatcher = ({ loginMode = false } = {}) => {
   if (child || runningPid()) throw new Error("既に起動しています");
+  appendLogLine(`[gui] start requested mode=${loginMode ? "login" : "normal"}`);
   ensureWatcherDeps();
+  ensureChromiumRuntime();
+  appendLogLine("[gui] starting watcher process...");
 
   const env = {
     ...process.env,

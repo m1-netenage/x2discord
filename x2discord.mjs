@@ -163,7 +163,10 @@ async function postOverlay(payload) {
     if (/Executable doesn't exist|browserType\.launch/i.test(msg)) {
       console.error("[x2discord] Playwright Chromium が未導入の可能性があります。自動セットアップを試します。");
       try {
-        execSync("npx playwright install chromium", { stdio: "inherit" });
+        execSync("npx playwright install chromium", {
+          stdio: ["ignore", "pipe", "pipe"],
+          windowsHide: true,
+        });
         console.error("[x2discord] Chromium のセットアップ完了。再起動します。");
         await launchRuntime();
       } catch (installErr) {
