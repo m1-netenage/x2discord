@@ -221,6 +221,23 @@ const handleStream = (stream, label) => {
     const tagged = `[${label}] ${line}`;
     appendLogLine(tagged);
     broadcastLog(tagged);
+    // X login can be blocked on some Windows environments. Emit a concrete fallback.
+    if (
+      /Could not log you in now\. Please try again later\./i.test(line) ||
+      /log you in now/i.test(line) ||
+      /Try again later/i.test(line)
+    ) {
+      const tips = [
+        "[gui] login fallback: X login appears blocked by platform security checks.",
+        "[gui] workaround: 1) complete login on Mac with 'Start for Login' and save storageState.json",
+        "[gui] workaround: 2) copy storageState.json to this Windows folder",
+        "[gui] workaround: 3) use 'Start (headless)' on Windows (skip Start for Login)",
+      ];
+      for (const tip of tips) {
+        appendLogLine(tip);
+        broadcastLog(tip);
+      }
+    }
   });
 };
 
