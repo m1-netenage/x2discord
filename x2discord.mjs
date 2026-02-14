@@ -116,9 +116,19 @@ async function postOverlay(payload) {
   let page = null;
 
   const launchRuntime = async () => {
-    browser = await chromium.launch({
+    const launchOptions = {
       headless: INIT_LOGIN ? false : HEADLESS,
-    });
+    };
+    if (INIT_LOGIN) {
+      // Prefer a locally installed Chrome for login flow.
+      try {
+        browser = await chromium.launch({ ...launchOptions, channel: "chrome" });
+      } catch {
+        browser = await chromium.launch(launchOptions);
+      }
+    } else {
+      browser = await chromium.launch(launchOptions);
+    }
     // If you run with INIT_LOGIN=1, the browser will open so you can log into X once.
     // After login, press Enter in the terminal to save cookies to STORAGE_PATH.
     context = await browser.newContext({
