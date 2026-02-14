@@ -1,0 +1,86 @@
+name: Windows Smoke Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Prepare minimal runtime markers
+        shell: pwsh
+        run: |
+          if (!(Test-Path ".playwright-installed")) {
+            New-Item -ItemType File -Path ".playwright-installed" | Out-Null
+          }
+
+      - name: Launch Windows starter
+        shell: pwsh
+        run: |
+          cmd /c START-Windows.bat
+
+      - name: Wait for GUI and verify status endpoint
+        shell: pwsh
+        run: |
+          $ok = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep -Seconds 1
+            try {
+              $res = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:3000/status" -TimeoutSec 2
+              if ($res.StatusCode -eq 200) {
+                $ok = $true
+                break
+              }
+            } catch {}
+          }
+
+          if (!$ok) {
+            if (Test-Path "launcher.log") {
+              Write-Host "--- launcher.log ---"
+              Get-Content "launcher.log"
+            }
+            if (Test-Path "gui.log") {
+              Write-Host "--- gui.log ---"
+              Get-Content "gui.log"
+            }
+            throw "GUI did not become reachable on http://localhost:3000/status"
+          }
+
+      - name: Print launcher logs
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path "launcher.log") {
+            Write-Host "--- launcher.log ---"
+            Get-Content "launcher.log"
+          } else {
+            Write-Host "launcher.log not found"
+          }
+          if (Test-Path "gui.log") {
+            Write-Host "--- gui.log (tail) ---"
+            Get-Content "gui.log" -Tail 100
+          } else {
+            Write-Host "gui.log not found"
+          }
+
+      - name: Cleanup node processes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

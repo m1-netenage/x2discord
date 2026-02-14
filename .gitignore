@@ -8,6 +8,7 @@ storageState.json
 gui.pid
 *.pid
 *.log
+launcher.log
 .playwright-installed
 seen_ids.txt
 dist/
