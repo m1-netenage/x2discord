@@ -39,15 +39,61 @@ start_gui() {
 
 ensure_runtime() {
   if ! command -v node >/dev/null 2>&1; then
-    echo "[x2discord] Node.js が見つかりません。Node.js 18+ をインストールしてください。"
-    notify "Node.js 18+ が必要です"
+    echo "[x2discord] Node.js が見つかりません。Node.js (LTS) を自動インストールします。"
+    notify "Node.js (LTS) をセットアップ中"
+
+    if ! command -v curl >/dev/null 2>&1; then
+      echo "[x2discord] curl が見つかりません。Xcode Command Line Tools を先に導入してください。"
+      notify "curl が見つかりません"
+      exit 1
+    fi
+
+    export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+    if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
+      if ! curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash; then
+        echo "[x2discord] nvm のインストールに失敗しました。"
+        notify "nvm インストール失敗"
+        exit 1
+      fi
+    fi
+
+    if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
+      echo "[x2discord] nvm の初期化ファイルが見つかりません。"
+      notify "nvm 初期化失敗"
+      exit 1
+    fi
+
+    # shellcheck disable=SC1090
+    . "$NVM_DIR/nvm.sh"
+
+    if ! command -v nvm >/dev/null 2>&1; then
+      echo "[x2discord] nvm コマンドを読み込めませんでした。"
+      notify "nvm 読み込み失敗"
+      exit 1
+    fi
+
+    if ! nvm install --lts; then
+      echo "[x2discord] Node.js LTS のインストールに失敗しました。"
+      notify "Node.js LTS インストール失敗"
+      exit 1
+    fi
+
+    nvm use --lts >/dev/null 2>&1 || true
+  fi
+
+  if ! command -v node >/dev/null 2>&1; then
+    echo "[x2discord] Node.js が有効になっていません。再実行してください。"
+    notify "Node.js セットアップ未完了"
     exit 1
   fi
+
   if ! command -v npm >/dev/null 2>&1; then
     echo "[x2discord] npm が見つかりません。Node.js を再インストールしてください。"
     notify "npm が見つかりません"
     exit 1
   fi
+
+  echo "[x2discord] node=$(node -v) npm=$(npm -v)"
 
   if [[ ! -d "./node_modules/playwright" ]]; then
     echo "[x2discord] 初回セットアップ: npm ci"
