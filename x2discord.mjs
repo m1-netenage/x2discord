@@ -25,7 +25,7 @@ const HEADLESS = (process.env.HEADLESS || "true").toLowerCase() !== "false";
 const STORAGE_PATH = process.env.STORAGE_PATH || "./storageState.json";
 const INIT_LOGIN = (process.env.INIT_LOGIN || "0") === "1";
 const DEBUG_POST = (process.env.DEBUG_POST || "0") === "1";
-const LOGIN_URL = "https://x.com/i/flow/login";
+const LOGIN_START_URL = process.env.LOGIN_START_URL || "https://x.com/home";
 const LOGIN_PROFILE_DIR = process.env.LOGIN_PROFILE_DIR || "./.login-profile";
 
 if (!INIT_LOGIN && !WEBHOOK_URL) {
@@ -143,7 +143,7 @@ async function postOverlay(payload) {
       });
       page = await context.newPage();
     }
-    await page.goto(INIT_LOGIN ? LOGIN_URL : url, { waitUntil: "domcontentloaded" });
+    await page.goto(INIT_LOGIN ? LOGIN_START_URL : url, { waitUntil: "domcontentloaded" });
   };
 
   const recreateRuntime = async (reason) => {
