@@ -1,5 +1,6 @@
 import { chromium } from "playwright";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 // Settings via environment variables
 // NOTE: You can provide these via a `.env` file and run with:
@@ -160,10 +161,19 @@ async function postOverlay(payload) {
     const msg = e?.message || String(e);
     console.error("[x2discord] browser launch failed:", msg);
     if (/Executable doesn't exist|browserType\.launch/i.test(msg)) {
-      console.error("[x2discord] Playwright Chromium が未導入の可能性があります");
-      console.error("[x2discord] 実行: npx playwright install chromium");
+      console.error("[x2discord] Playwright Chromium が未導入の可能性があります。自動セットアップを試します。");
+      try {
+        execSync("npx playwright install chromium", { stdio: "inherit" });
+        console.error("[x2discord] Chromium のセットアップ完了。再起動します。");
+        await launchRuntime();
+      } catch (installErr) {
+        console.error("[x2discord] Chromium セットアップに失敗:", installErr?.message || installErr);
+        console.error("[x2discord] 手動実行: npx playwright install chromium");
+        process.exit(1);
+      }
+    } else {
+      process.exit(1);
     }
-    process.exit(1);
   }
 
   if (INIT_LOGIN) {
