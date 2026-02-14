@@ -27,6 +27,7 @@ const INIT_LOGIN = (process.env.INIT_LOGIN || "0") === "1";
 const DEBUG_POST = (process.env.DEBUG_POST || "0") === "1";
 const LOGIN_START_URL = process.env.LOGIN_START_URL || "https://x.com/home";
 const LOGIN_PROFILE_DIR = process.env.LOGIN_PROFILE_DIR || "./.login-profile";
+const LOGIN_USER_AGENT = (process.env.LOGIN_USER_AGENT || "").trim();
 
 if (!INIT_LOGIN && !WEBHOOK_URL) {
   console.error("[x2discord] DISCORD_WEBHOOK_URL が未設定です (.env を作ってください)");
@@ -124,12 +125,17 @@ async function postOverlay(payload) {
           headless: false,
           channel: "chrome",
           locale: "ja-JP",
+          ...(LOGIN_USER_AGENT ? { userAgent: LOGIN_USER_AGENT } : {}),
         });
       } catch {
         context = await chromium.launchPersistentContext(LOGIN_PROFILE_DIR, {
           headless: false,
           locale: "ja-JP",
+          ...(LOGIN_USER_AGENT ? { userAgent: LOGIN_USER_AGENT } : {}),
         });
+      }
+      if (LOGIN_USER_AGENT) {
+        console.log("[x2discord] login user-agent override is enabled");
       }
       browser = context.browser();
       page = context.pages()[0] || (await context.newPage());

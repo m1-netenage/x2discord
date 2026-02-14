@@ -31,6 +31,7 @@ const ENV_DEFAULTS = {
   POLL_SECONDS: "30",
   MAX_TEXT_LEN: "0",
   HIGHLIGHT_IDS: "",
+  LOGIN_USER_AGENT: "",
 };
 
 const ensureEnvFile = () => {
@@ -91,7 +92,7 @@ const saveEnvHighlight = (handles) => {
   fs.writeFileSync(ENV_PATH, out.filter((l, idx, arr) => idx === arr.length - 1 ? l.trim() !== "" ? l : "" : true).join("\n") + "\n");
 };
 
-const ENV_KEYS = ["DISCORD_WEBHOOK_URL", "HASHTAG", "POLL_SECONDS", "MAX_TEXT_LEN", "HIGHLIGHT_IDS"];
+const ENV_KEYS = ["DISCORD_WEBHOOK_URL", "HASHTAG", "POLL_SECONDS", "MAX_TEXT_LEN", "HIGHLIGHT_IDS", "LOGIN_USER_AGENT"];
 
 const parseEnv = () => {
   const values = Object.create(null);
@@ -461,6 +462,8 @@ const handleRoot = (res) => {
         <input id="envWebhook" type="text" style="width:100%; padding:8px; border-radius:8px; border:1px solid #1f2937; background:#111827; color:#e2e8f0;" placeholder="https://discord.com/api/webhooks/..." />
         <label style="display:block; margin:10px 0 4px;">HASHTAG (カンマ区切りで複数可)</label>
         <input id="envHashtag" type="text" style="width:100%; padding:8px; border-radius:8px; border:1px solid #1f2937; background:#111827; color:#e2e8f0;" placeholder="#foo,#bar" />
+        <label style="display:block; margin:10px 0 4px;">LOGIN_USER_AGENT (任意)</label>
+        <input id="envLoginUA" type="text" style="width:100%; padding:8px; border-radius:8px; border:1px solid #1f2937; background:#111827; color:#e2e8f0;" placeholder="Mozilla/5.0 ..." />
         <div style="display:flex; gap:12px; margin-top:10px; flex-wrap:wrap;">
           <div style="flex:1; min-width:140px;">
             <label style="display:block; margin-bottom:4px;">POLL_SECONDS</label>
@@ -506,11 +509,12 @@ const handleRoot = (res) => {
       const hlMsg = document.getElementById("hlMsg");
       const envWebhook = document.getElementById("envWebhook");
       const envHashtag = document.getElementById("envHashtag");
+      const envLoginUA = document.getElementById("envLoginUA");
       const envPoll = document.getElementById("envPoll");
       const envMaxLen = document.getElementById("envMaxLen");
       const envSaveBtn = document.getElementById("envSaveBtn");
       const envMsg = document.getElementById("envMsg");
-      const envInputs = [envWebhook, envHashtag, envPoll, envMaxLen];
+      const envInputs = [envWebhook, envHashtag, envLoginUA, envPoll, envMaxLen];
 
       const updateStatus = async () => {
         const res = await fetch("/status").then((r) => r.json());
@@ -532,6 +536,7 @@ const handleRoot = (res) => {
         if (!envEditing && res.env) {
           envWebhook.value = res.env.DISCORD_WEBHOOK_URL || "";
           envHashtag.value = res.env.HASHTAG || "";
+          envLoginUA.value = res.env.LOGIN_USER_AGENT || "";
           envPoll.value = res.env.POLL_SECONDS || "";
           envMaxLen.value = res.env.MAX_TEXT_LEN || "";
         }
@@ -580,6 +585,7 @@ const handleRoot = (res) => {
         const payload = {
           DISCORD_WEBHOOK_URL: envWebhook.value.trim(),
           HASHTAG: envHashtag.value.trim(),
+          LOGIN_USER_AGENT: envLoginUA.value.trim(),
           POLL_SECONDS: envPoll.value.trim(),
           MAX_TEXT_LEN: envMaxLen.value.trim(),
         };
