@@ -177,6 +177,16 @@ const removeGuiPidFile = () => {
   }
 };
 
+// Write our own PID for launchers to detect running GUI; cleaned on exit handlers below.
+(() => {
+  try {
+    const guiPidPath = path.resolve(__dirname, "./gui.pid");
+    fs.writeFileSync(guiPidPath, String(process.pid));
+  } catch {
+    // ignore
+  }
+})();
+
 const runningPid = () => {
   try {
     if (!fs.existsSync(PID_FILE)) return null;

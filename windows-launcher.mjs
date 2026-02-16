@@ -25,18 +25,28 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Fallback: plain detached spawn with output to gui.log (no PowerShell).
-  const guiLogFd = fs.openSync(path.resolve(__dirname, "gui.log"), "a");
-  const child = spawn(process.execPath, [path.resolve(__dirname, "gui.mjs")], {
+  // Launch via temporary VBScript to create a fully detached process
+  // that survives parent CMD close. Output is redirected to gui.log.
+  const nodeExe = process.execPath.replace(/"/g, '""');
+  const script = path.resolve(__dirname, "gui.mjs").replace(/"/g, '""');
+  const guiLog = path.resolve(__dirname, "gui.log").replace(/"/g, '""');
+  const vbsPath = path.resolve(__dirname, "launch-gui.vbs");
+
+  const vbs = [
+    'Set oShell = CreateObject("WScript.Shell")',
+    `cmd = "cmd /c """"${nodeExe}"" ""${script}"" >> ""${guiLog}"" 2>&1"""`,
+    'oShell.Run cmd, 0, False', // 0=hidden window, False=do not wait
+  ].join("\r\n");
+  fs.writeFileSync(vbsPath, vbs);
+
+  const child = spawn("wscript.exe", [vbsPath], {
     cwd: __dirname,
     detached: true,
-    stdio: ["ignore", guiLogFd, guiLogFd],
+    stdio: "ignore",
     windowsHide: true,
   });
   child.unref();
-  fs.closeSync(guiLogFd);
-  fs.writeFileSync(GUI_PID_FILE, String(child.pid));
-  log(`[x2discord] gui started pid=${child.pid}`);
+  log(`[x2discord] gui launch script started (pid=${child.pid})`);
 };
 
 try {
