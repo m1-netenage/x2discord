@@ -21,7 +21,8 @@ const SEEN_PATH = process.env.SEEN_PATH || "./seen_ids.txt";
 const OVERLAY_POST_URL = process.env.OVERLAY_POST_URL || "http://localhost:3000/overlay/message";
 const OVERLAY_ENABLED = (process.env.OVERLAY_ENABLED || "1") === "1";
 
-const HEADLESS = (process.env.HEADLESS || "true").toLowerCase() !== "false";
+// HeadlessをデフォルトでOFFにしてログイン壁やクラッシュを回避しやすくする
+const HEADLESS = (process.env.HEADLESS || "false").toLowerCase() !== "false";
 const STORAGE_PATH = process.env.STORAGE_PATH || "./storageState.json";
 const INIT_LOGIN = (process.env.INIT_LOGIN || "0") === "1";
 const DEBUG_POST = (process.env.DEBUG_POST || "0") === "1";
@@ -144,10 +145,22 @@ async function postOverlay(payload) {
     } else {
       browser = await chromium.launch({
         headless: HEADLESS,
+        channel: HEADLESS ? undefined : "chrome", // use system Chrome when visible for better compatibility
       });
       context = await browser.newContext({
         storageState: existsSync(STORAGE_PATH) ? STORAGE_PATH : undefined,
         locale: "ja-JP",
+        ...(LOGIN_USER_AGENT ? { userAgent: LOGIN_USER_AGENT } : {}),
+      });
+      // Apply the same stealth tweaks as login mode to reduce detection
+      await context.addInitScript(() => {
+        Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+        window.navigator.chrome = { runtime: {} };
+        const originalQuery = window.navigator.permissions.query;
+        window.navigator.permissions.query = (parameters) =>
+          parameters.name === "notifications"
+            ? Promise.resolve({ state: Notification.permission })
+            : originalQuery(parameters);
       });
       page = await context.newPage();
     }
