@@ -25,18 +25,29 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Use `start` to create a new console session so closing the original CMD
-  // window won't deliver CTRL_CLOSE_EVENT to the GUI. `/min` keeps it unobtrusive.
-  const startCmd = `start "" /min "${process.execPath}" "${path.resolve(__dirname, "gui.mjs")}"`;
-  const child = spawn("cmd.exe", ["/c", startCmd], {
+  // Launch via PowerShell Start-Process with -PassThru to get the real GUI pid,
+  // write it to gui.pid, and detach from the original console. A hidden window
+  // avoids the extra black box.
+  const ps = `
+$ErrorActionPreference = 'Stop'
+$node = "${process.execPath.replace(/`/g, "``")}"
+$script = "${path.resolve(__dirname, "gui.mjs").replace(/`/g, "``")}"
+$workdir = "${__dirname.replace(/`/g, "``")}"
+$pidFile = "${path.resolve(__dirname, "gui.pid").replace(/`/g, "``")}"
+$logFile = "${LAUNCH_LOG_FILE.replace(/`/g, "``")}"
+$proc = Start-Process -FilePath $node -ArgumentList @($script) -WorkingDirectory $workdir -WindowStyle Hidden -PassThru
+Set-Content -Path $pidFile -Value $proc.Id -Encoding ascii
+Add-Content -Path $logFile -Value "[x2discord] gui started pid=$($proc.Id)"
+  `.trim();
+
+  const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], {
     cwd: __dirname,
     detached: true,
     stdio: "ignore",
     windowsHide: true,
   });
   child.unref();
-  fs.writeFileSync(GUI_PID_FILE, String(child.pid));
-  log(`[x2discord] gui launch command issued via cmd start (pid=${child.pid})`);
+  log(`[x2discord] gui launch command issued via PowerShell helper (pid=${child.pid})`);
 };
 
 try {
