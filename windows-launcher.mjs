@@ -4,7 +4,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const GUI_LOG_FILE = path.resolve(__dirname, "gui.log");
 const LAUNCH_LOG_FILE = path.resolve(__dirname, "launcher.log");
 const GUI_PID_FILE = path.resolve(__dirname, "gui.pid");
 
@@ -26,15 +25,14 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  const fd = fs.openSync(GUI_LOG_FILE, "a");
+  // Detach from the launching console so closing CMD does not kill the GUI.
   const child = spawn(process.execPath, ["gui.mjs"], {
     cwd: __dirname,
     detached: true,
-    stdio: ["ignore", fd, fd],
+    stdio: "ignore", // disassociate from console handles
     windowsHide: true,
   });
   child.unref();
-  fs.closeSync(fd);
   fs.writeFileSync(GUI_PID_FILE, String(child.pid));
   log(`[x2discord] gui started pid=${child.pid}`);
 };
