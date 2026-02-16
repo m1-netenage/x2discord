@@ -25,35 +25,18 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Launch via PowerShell Start-Process to fully detach from the launcher
-  // console. This avoids CTRL_CLOSE_EVENT propagation when the original CMD is
-  // closed. WindowStyle Hidden keeps the extra console invisible.
-  const psArgs = [
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-Command",
-    "Start-Process",
-    "-FilePath",
-    `"${process.execPath}"`,
-    "-ArgumentList",
-    `"${path.resolve(__dirname, "gui.mjs")}"`,
-    "-WorkingDirectory",
-    `"${__dirname}"`,
-    "-WindowStyle",
-    "Hidden",
-  ];
-
-  const child = spawn("powershell.exe", psArgs, {
+  // Use `start` to create a new console session so closing the original CMD
+  // window won't deliver CTRL_CLOSE_EVENT to the GUI. `/min` keeps it unobtrusive.
+  const startCmd = `start "" /min "${process.execPath}" "${path.resolve(__dirname, "gui.mjs")}"`;
+  const child = spawn("cmd.exe", ["/c", startCmd], {
     cwd: __dirname,
     detached: true,
     stdio: "ignore",
     windowsHide: true,
   });
-
   child.unref();
   fs.writeFileSync(GUI_PID_FILE, String(child.pid));
-  log(`[x2discord] gui launch command issued via PowerShell (pid=${child.pid})`);
+  log(`[x2discord] gui launch command issued via cmd start (pid=${child.pid})`);
 };
 
 try {
