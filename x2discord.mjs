@@ -125,12 +125,14 @@ async function postOverlay(payload) {
           headless: false,
           channel: "chrome",
           locale: "ja-JP",
+          args: ["--disable-blink-features=AutomationControlled"],
           ...(LOGIN_USER_AGENT ? { userAgent: LOGIN_USER_AGENT } : {}),
         });
       } catch {
         context = await chromium.launchPersistentContext(LOGIN_PROFILE_DIR, {
           headless: false,
           locale: "ja-JP",
+          args: ["--disable-blink-features=AutomationControlled"],
           ...(LOGIN_USER_AGENT ? { userAgent: LOGIN_USER_AGENT } : {}),
         });
       }
@@ -149,6 +151,19 @@ async function postOverlay(payload) {
       });
       page = await context.newPage();
     }
+
+    // Soften automation detection during login (navigator.webdriver, chrome.runtime checks, etc.)
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+      // Some sites look for this object to exist
+      window.navigator.chrome = { runtime: {} };
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) =>
+        parameters.name === "notifications"
+          ? Promise.resolve({ state: Notification.permission })
+          : originalQuery(parameters);
+    });
+
     await page.goto(INIT_LOGIN ? LOGIN_START_URL : url, { waitUntil: "domcontentloaded" });
   };
 
