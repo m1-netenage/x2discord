@@ -223,6 +223,27 @@ const findWatcherPids = () => {
   }
 };
 
+// Windows専用: コマンドラインに x2discord.mjs を含む node プロセスを強制終了
+const killWindowsWatchers = () => {
+  if (process.platform !== "win32") return false;
+  try {
+    execSync(
+      [
+        'powershell -NoProfile -Command "',
+        "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'x2discord.mjs' }",
+        "foreach ($p in $procs) {",
+        "  try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop } catch {}",
+        "}",
+        '"',
+      ].join(" "),
+      { stdio: "ignore", windowsHide: true }
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const readLastLines = (filePath, maxLines = 200) => {
   if (!fs.existsSync(filePath)) return [];
   const data = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
@@ -388,6 +409,8 @@ const stopWatcher = () => {
       return false;
     }
   }
+  // Windowsで pid ファイルが無い孤立プロセスを強制終了
+  if (killWindowsWatchers()) return true;
   // 最後の手段: プロセス名ベースでx2discord.mjsを止める
   const pids = findWatcherPids();
   let killed = false;
