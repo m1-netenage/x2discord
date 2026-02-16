@@ -208,7 +208,7 @@ const findWatcherPids = () => {
   // when `/status` is polled frequently by the GUI.
   if (process.platform === "win32") return [];
   try {
-    const out = execSync("pgrep -f \"node .*x2discord.mjs\"", {
+    const out = execSync('pgrep -f "node .*x2discord.mjs"', {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       windowsHide: true,
@@ -227,19 +227,23 @@ const findWatcherPids = () => {
 const killWindowsWatchers = () => {
   if (process.platform !== "win32") return false;
   try {
-    execSync(
+    const out = execSync(
       [
-        'powershell -NoProfile -Command "',
+        "powershell -NoProfile -Command \"",
+        "$killed = @()",
         "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'x2discord.mjs' }",
         "foreach ($p in $procs) {",
-        "  try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop } catch {}",
+        "  try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop; $killed += $p.ProcessId } catch {}",
         "}",
-        '"',
+        "$killed -join ' '",
+        "\"",
       ].join(" "),
-      { stdio: "ignore", windowsHide: true }
-    );
-    return true;
-  } catch {
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], windowsHide: true }
+    ).trim();
+    if (out) appendLogLine(`[gui] stopped watcher PIDs on Windows: ${out}`);
+    return Boolean(out);
+  } catch (e) {
+    appendLogLine(`[gui] failed to stop watchers on Windows: ${e?.message || e}`);
     return false;
   }
 };
@@ -396,7 +400,13 @@ const startWatcher = ({ loginMode = false } = {}) => {
 const stopWatcher = () => {
   // 優先: 現在管理下のchild
   if (child) {
-    child.kill();
+    try {
+      child.kill();
+    } catch {}
+    child = null;
+    currentMode = "normal";
+    loginPending = false;
+    if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
     return true;
   }
   // GUI再起動などでchildが失われた場合でもpidファイルが残っていれば止める
@@ -404,6 +414,7 @@ const stopWatcher = () => {
   if (pid) {
     try {
       process.kill(pid);
+      if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
       return true;
     } catch {
       return false;
@@ -703,6 +714,7 @@ const handleStop = (res) => {
 
 const handleShutdown = (res) => {
   stopWatcher();
+  killWindowsWatchers();
   json(res, 200, { ok: true });
   setTimeout(() => {
     removeGuiPidFile();
