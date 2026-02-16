@@ -25,14 +25,17 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Minimal, reliable launch: spawn node gui.mjs detached, hidden, stdio=ignore.
+  // Minimal, reliable launch: spawn node gui.mjs detached, hidden.
+  // Pipe stdout/stderr to gui.log for debugging while keeping it off the console.
+  const guiLog = fs.openSync(path.resolve(__dirname, "gui.log"), "a");
   const child = spawn(process.execPath, [path.resolve(__dirname, "gui.mjs")], {
     cwd: __dirname,
     detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", guiLog, guiLog],
     windowsHide: true,
   });
   child.unref();
+  fs.closeSync(guiLog);
   fs.writeFileSync(GUI_PID_FILE, String(child.pid));
   log(`[x2discord] gui started pid=${child.pid}`);
 };
