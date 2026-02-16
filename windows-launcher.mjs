@@ -25,29 +25,16 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Launch via PowerShell Start-Process with -PassThru to get the real GUI pid,
-  // write it to gui.pid, and detach from the original console. A hidden window
-  // avoids the extra black box.
-  const ps = `
-$ErrorActionPreference = 'Stop'
-$node = "${process.execPath.replace(/`/g, "``")}"
-$script = "${path.resolve(__dirname, "gui.mjs").replace(/`/g, "``")}"
-$workdir = "${__dirname.replace(/`/g, "``")}"
-$pidFile = "${path.resolve(__dirname, "gui.pid").replace(/`/g, "``")}"
-$logFile = "${LAUNCH_LOG_FILE.replace(/`/g, "``")}"
-$proc = Start-Process -FilePath $node -ArgumentList @($script) -WorkingDirectory $workdir -WindowStyle Hidden -PassThru
-Set-Content -Path $pidFile -Value $proc.Id -Encoding ascii
-Add-Content -Path $logFile -Value "[x2discord] gui started pid=$($proc.Id)"
-  `.trim();
-
-  const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], {
+  // Minimal, reliable launch: spawn node gui.mjs detached, hidden, stdio=ignore.
+  const child = spawn(process.execPath, [path.resolve(__dirname, "gui.mjs")], {
     cwd: __dirname,
     detached: true,
     stdio: "ignore",
     windowsHide: true,
   });
   child.unref();
-  log(`[x2discord] gui launch command issued via PowerShell helper (pid=${child.pid})`);
+  fs.writeFileSync(GUI_PID_FILE, String(child.pid));
+  log(`[x2discord] gui started pid=${child.pid}`);
 };
 
 try {
