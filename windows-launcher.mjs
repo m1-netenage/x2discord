@@ -25,19 +25,27 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Minimal, reliable launch: spawn node gui.mjs detached, hidden.
-  // Pipe stdout/stderr to gui.log for debugging while keeping it off the console.
-  const guiLog = fs.openSync(path.resolve(__dirname, "gui.log"), "a");
-  const child = spawn(process.execPath, [path.resolve(__dirname, "gui.mjs")], {
+  // Use PowerShell Start-Process to fully detach and redirect output to gui.log.
+  const nodePath = process.execPath.replace(/`/g, "``");
+  const scriptPath = path.resolve(__dirname, "gui.mjs").replace(/`/g, "``");
+  const workdir = __dirname.replace(/`/g, "``");
+  const guiLog = path.resolve(__dirname, "gui.log").replace(/`/g, "``");
+  const guiPid = GUI_PID_FILE.replace(/`/g, "``");
+  const ps = `
+$ErrorActionPreference = 'Stop'
+$p = Start-Process -FilePath "${nodePath}" -ArgumentList "${scriptPath}" -WorkingDirectory "${workdir}" -WindowStyle Hidden -RedirectStandardOutput "${guiLog}" -RedirectStandardError "${guiLog}" -PassThru
+Set-Content -Path "${guiPid}" -Value $p.Id -Encoding ascii
+Add-Content -Path "${LAUNCH_LOG_FILE.replace(/`/g, "``")}" -Value "[x2discord] gui started pid=$($p.Id)"
+`.trim();
+
+  const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], {
     cwd: __dirname,
     detached: true,
-    stdio: ["ignore", guiLog, guiLog],
+    stdio: "ignore",
     windowsHide: true,
   });
   child.unref();
-  fs.closeSync(guiLog);
-  fs.writeFileSync(GUI_PID_FILE, String(child.pid));
-  log(`[x2discord] gui started pid=${child.pid}`);
+  log(`[x2discord] gui launch command issued via PowerShell (pid=${child.pid})`);
 };
 
 try {
