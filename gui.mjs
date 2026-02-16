@@ -106,6 +106,28 @@ const parseEnv = () => {
 
 ensureEnvFile();
 
+// Helper: get exec options with Node.js directory in PATH
+const getExecOptionsWithNodePath = () => {
+  const nodeDir = path.dirname(process.execPath);
+  const envCopy = { ...process.env };
+  
+  // Add Node.js directory to PATH
+  if (process.platform === 'win32') {
+    envCopy.PATH = `${nodeDir};${envCopy.PATH || ''}`;
+  } else {
+    envCopy.PATH = `${nodeDir}:${envCopy.PATH || ''}`;
+  }
+  
+  return {
+    cwd: __dirname,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+    maxBuffer: 20 * 1024 * 1024,
+    env: envCopy,
+  };
+};
+
 // 初期値を .env から強制ロードして、環境変数に反映
 const BOOT_ENV = parseEnv();
 if (BOOT_ENV.HIGHLIGHT_IDS) {
@@ -247,13 +269,9 @@ const ensureWatcherDeps = () => {
   if (fs.existsSync(PLAYWRIGHT_MODULE_DIR)) return;
   appendLogLine("[gui] playwright package not found. running npm ci...");
   try {
-    const out = execSync("npm ci", {
-      cwd: __dirname,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-      maxBuffer: 20 * 1024 * 1024,
-    });
+    const nodeDir = path.dirname(process.execPath);
+    appendLogLine(`[gui] node.js directory: ${nodeDir}`);
+    const out = execSync("npm ci", getExecOptionsWithNodePath());
     if ((out || "").trim()) {
       appendLogLine("[gui] npm ci completed");
     }
@@ -273,13 +291,7 @@ const ensureChromiumRuntime = () => {
   if (fs.existsSync(PLAYWRIGHT_MARKER)) return;
   appendLogLine("[gui] preparing Playwright Chromium (first-time setup, may take a few minutes)...");
   try {
-    execSync("npx playwright install chromium", {
-      cwd: __dirname,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-      maxBuffer: 20 * 1024 * 1024,
-    });
+    execSync("npx playwright install chromium", getExecOptionsWithNodePath());
     fs.writeFileSync(PLAYWRIGHT_MARKER, "");
     appendLogLine("[gui] Playwright Chromium setup completed");
   } catch (e) {
