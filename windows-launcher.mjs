@@ -25,16 +25,18 @@ const readGuiPid = () => {
 };
 
 const launchGui = () => {
-  // Detach from the launching console so closing CMD does not kill the GUI.
-  const child = spawn(process.execPath, ["gui.mjs"], {
+  // Launch via `start` to give the GUI its own console session; closing the
+  // original CMD window won't send a CTRL_CLOSE_EVENT to the GUI process.
+  // We hide the extra console with /min and windowsHide.
+  const child = spawn("cmd.exe", ["/c", "start", "", "/min", process.execPath, "gui.mjs"], {
     cwd: __dirname,
     detached: true,
-    stdio: "ignore", // disassociate from console handles
+    stdio: "ignore",
     windowsHide: true,
   });
   child.unref();
   fs.writeFileSync(GUI_PID_FILE, String(child.pid));
-  log(`[x2discord] gui started pid=${child.pid}`);
+  log(`[x2discord] gui launch command issued (cmd pid=${child.pid})`);
 };
 
 try {
