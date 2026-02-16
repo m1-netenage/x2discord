@@ -45,18 +45,17 @@ X の指定ハッシュタグを定期取得し、Discord Webhook に投稿す�
 
 補足: ZIP 版は更新を自動取得しません。最新版を使うときは再度 `Download ZIP` してください。
 
-はじめに（ターミナル不要）
---------------------------
+クイックスタート（ターミナル不要）
+---------------------------------
 
-1. Windows は `START-Windows.bat`、macOS は `START-Mac.command` をダブルクリックする
-2. GUI が開いたら「環境設定 (.env に保存)」を入力して保存する（`.env` が無ければ自動生成されます）
-3. 初回だけ「Start for Login」-> X ログイン -> 「ログイン完了 -> 保存」
-4. 通常運用は「Start (headless)」で開始、「Stop」で停止
-5. GUI も含めて完全終了したいときは「Stop & Exit」を押す
+1. Windows は `START-Windows.bat`、macOS は `START-Mac.command` をダブルクリック
+2. GUI が開いたら「環境設定 (.env に保存)」を入力して保存（`.env` が無ければ自動生成）
+3. 初回ログイン: 「Start for Login」→ X にサインイン → GUI の「ログイン完了」を押す（`storageState.json` が更新される）
+4. 通常運用: 「Start」で開始、「Stop」で停止（デフォルトはブラウザ表示。非表示にしたい場合は `.env` で `HEADLESS=true`）
+5. GUI も含めて完全終了したいときは「Stop & Exit」
 6. ハイライトしたいハンドルを入力して「保存（.envにも保存）」
 
-補足: 監視中に環境設定を保存すると、ウォッチャーは自動再起動して設定を反映します。
-補足: 配布時は、利用者ごとに自分の Discord Webhook URL（=自分のチャンネル）を GUI から登録して使います。
+補足: 監視中に環境設定を保存するとウォッチャーが自動再起動して設定を反映します。配布時は利用者ごとに自分の Discord Webhook URL を登録して使ってください。
 
 Discord 側の準備（Webhook 作成手順）
 -----------------------------------
@@ -82,7 +81,7 @@ Webhook URL はパスワードと同じ扱いにして、他人に共有しな�
 - `HASHTAG`: 監視ハッシュタグ（カンマ区切り。例: `tag1,tag2`）
 - `POLL_SECONDS`: ポーリング間隔（秒）
 - `MAX_TEXT_LEN`: 送信本文の最大文字数（`0` または未入力で無制限）
-- `HEADLESS`: `true` で画面非表示、`false` でブラウザ表示
+- `HEADLESS`: `true` で画面非表示、`false` でブラウザ表示（デフォルトは表示）
 - `STORAGE_PATH`: cookie 保存先（既定: `./storageState.json`）
 - `SEEN_PATH`: 送信済み ID 保存先（既定: `./seen_ids.txt`）
 - `HIGHLIGHT_IDS`: ハイライト対象ハンドル（カンマ区切り）
@@ -105,24 +104,24 @@ GUI 起動時に Chromium 不足エラーが出る場合のみ、1 回だけ以�
 npx playwright install chromium
 ```
 
-運用のヒント
+- 運用のヒント
 ------------
 
 - 再送したい場合は `seen_ids.txt` を削除または空にして再起動
-- ログイン切れ時は「Start for Login」-> 「ログイン完了 -> 保存」
+- ログイン切れ時は「Start for Login」→「ログイン完了」を押して保存
 - URL / ハッシュタグ除去ルールを変える場合は `x2discord.mjs` の `normalizeText` を調整
 
 トラブルシュート
 ----------------
 
-- GUI が開かない: `http://localhost:3000` を手動で開く
-- 投稿されない: `.env` の Webhook URL、GUI 下部ログを確認
-- Stop しても流れる: 孤立プロセスの可能性。GUI の Stop を再実行
+- GUI が開かない: `http://localhost:3000` を手動で開く。`launcher.log` / `gui.log` を確認
+- 投稿されない: `.env` の Webhook URL、GUI 下部ログを確認。ログイン切れなら「Start for Login」で再保存
+- CMD を閉じたら止まる (Windows): ブラウザが開いたのを確認してから CMD を閉じる。止まる場合は `launcher.log` / `gui.log` / `gui.pid` を確認
 - 配布フォルダを削除できない: GUI の「Stop & Exit」で完全終了してから削除
 - 「Start for Login」で X に弾かれる:
-  1. X 側の一時ブロックで発生する場合があります（コード不具合ではないケースあり）
+  1. X 側の一時ブロックで発生する場合があります
   2. 20〜60分以上あけて再試行してください
-  3. 同じエラーが続く場合は、別環境で作成した `storageState.json` を共有して `Start (headless)` を利用してください
+  3. 続く場合は、別環境で作成した `storageState.json` を共有して `Start (headless)` を利用してください
 - ハイライトが効かない: `HIGHLIGHT_IDS` と OBS ブラウザソースのリロードを確認
 - macOSで「`START-Mac.command` は開けません」と出る:
   1. Finderで `START-Mac.command` を右クリック -> `開く` を実行（初回のみ）
